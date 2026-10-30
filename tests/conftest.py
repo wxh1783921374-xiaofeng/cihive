@@ -24,6 +24,10 @@ from cihive.models import (
 )
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    (config.rootpath / ".tmp").mkdir(exist_ok=True)
+
+
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return Settings(
