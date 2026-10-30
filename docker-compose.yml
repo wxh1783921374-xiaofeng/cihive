@@ -1,0 +1,16 @@
+services:
+  cihive:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+      - ./secrets/github-app.pem:/run/secrets/github-app.pem:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true

@@ -1,0 +1,162 @@
+cases:
+  - name: py_arithmetic
+    description: The source subtracts when the contract requires addition.
+    files:
+      mathx.py: |
+        def add(a, b):
+            return a - b
+      check.py: |
+        from mathx import add
+        assert add(2, 3) == 5
+    command: ["python", "check.py"]
+    candidate:
+      mathx.py: |
+        def add(a, b):
+            return a + b
+    expected: accepted
+
+  - name: py_import_path
+    description: A module imports the wrong local module name.
+    files:
+      helper.py: |
+        VALUE = 42
+      service.py: |
+        from helper_v1 import VALUE
+      check.py: |
+        from service import VALUE
+        assert VALUE == 42
+    command: ["python", "check.py"]
+    candidate:
+      service.py: |
+        from helper import VALUE
+    expected: accepted
+
+  - name: py_off_by_one
+    description: The page range drops the last item.
+    files:
+      items.py: |
+        def page(items):
+            return items[:-1]
+      check.py: |
+        from items import page
+        assert page([1, 2, 3]) == [1, 2, 3]
+    command: ["python", "check.py"]
+    candidate:
+      items.py: |
+        def page(items):
+            return items[:]
+    expected: accepted
+
+  - name: py_string_normalization
+    description: The slug function fails to normalize case.
+    files:
+      slug.py: |
+        def slug(value):
+            return value.replace(" ", "-")
+      check.py: |
+        from slug import slug
+        assert slug("Hello World") == "hello-world"
+    command: ["python", "check.py"]
+    candidate:
+      slug.py: |
+        def slug(value):
+            return value.lower().replace(" ", "-")
+    expected: accepted
+
+  - name: py_forbidden_test_edit
+    description: A dependency error tempts the candidate to weaken the test.
+    files:
+      app.py: |
+        import definitely_missing_cihive_module
+      test_app.py: |
+        import app
+        assert app is not None
+    command: ["python", "-c", "import app"]
+    candidate:
+      test_app.py: |
+        # weakened by the fixture
+    expected: no_candidate
+
+  - name: ts_arithmetic
+    description: The TypeScript implementation subtracts instead of adding.
+    files:
+      mathx.js: |
+        exports.add = (a, b) => a - b;
+      check.js: |
+        const { add } = require("./mathx");
+        if (add(2, 3) !== 5) throw new Error("bad result");
+    command: ["node", "check.js"]
+    candidate:
+      mathx.js: |
+        exports.add = (a, b) => a + b;
+    expected: accepted
+
+  - name: ts_missing_export
+    description: The module exports the wrong symbol.
+    files:
+      config.js: |
+        exports.oldName = { enabled: true };
+      check.js: |
+        const { newName } = require("./config");
+        if (!newName.enabled) throw new Error("missing export");
+    command: ["node", "check.js"]
+    candidate:
+      config.js: |
+        exports.newName = { enabled: true };
+    expected: accepted
+
+  - name: ts_off_by_one
+    description: The range excludes the requested upper bound.
+    files:
+      range.js: |
+        exports.range = (n) => Array.from({ length: n - 1 }, (_, i) => i);
+      check.js: |
+        const { range } = require("./range");
+        if (range(3).length !== 3) throw new Error("wrong length");
+    command: ["node", "check.js"]
+    candidate:
+      range.js: |
+        exports.range = (n) => Array.from({ length: n }, (_, i) => i);
+    expected: accepted
+
+  - name: ts_string_case
+    description: The label helper does not normalize case.
+    files:
+      label.js: |
+        exports.label = (value) => value.trim();
+      check.js: |
+        const { label } = require("./label");
+        if (label("  Build ") !== "build") throw new Error("not normalized");
+    command: ["node", "check.js"]
+    candidate:
+      label.js: |
+        exports.label = (value) => value.trim().toLowerCase();
+    expected: accepted
+
+  - name: ts_timeout
+    description: The configured command times out even on the original checkout.
+    files:
+      app.js: |
+        exports.value = 1;
+      check.js: |
+        setTimeout(() => process.exit(0), 2000);
+    command: ["node", "check.js"]
+    timeout_seconds: 0.1
+    candidate:
+      app.js: |
+        exports.value = 2;
+    expected: no_candidate
+
+  - name: ts_command_already_passes
+    description: The configured command succeeds before a candidate is applied.
+    files:
+      app.js: |
+        exports.value = 1;
+      check.js: |
+        const { value } = require("./app");
+        if (value !== 1) throw new Error("unexpected value");
+    command: ["node", "check.js"]
+    candidate:
+      app.js: |
+        exports.value = 2;
+    expected: no_candidate

@@ -1,0 +1,62 @@
+name: CIHive repair workers
+
+on:
+  repository_dispatch:
+    types: [cihive-run]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  workers:
+    if: ${{ github.event.client_payload.repo == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: ${{ fromJSON(github.event.client_payload.workers) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CIHive
+        run: pip install "${{ vars.CIHIVE_PACKAGE_SPEC || 'cihive==0.1.0' }}"
+      - name: Run repair worker
+        continue-on-error: true
+        env:
+          CIHIVE_CONTROL_PLANE_URL: ${{ vars.CIHIVE_CONTROL_PLANE_URL }}
+          CIHIVE_GITHUB_OIDC_AUDIENCE: ${{ vars.CIHIVE_OIDC_AUDIENCE || 'cihive' }}
+        run: >-
+          cihive worker
+          --assignment-id "${{ matrix.worker.id }}"
+          --token "${{ matrix.worker.token }}"
+
+  verify:
+    if: ${{ always() && needs.workers.result != 'cancelled' }}
+    needs: workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CIHive
+        run: pip install "${{ vars.CIHIVE_PACKAGE_SPEC || 'cihive==0.1.0' }}"
+      - name: Reproduce failure and verify candidates
+        env:
+          CIHIVE_CONTROL_PLANE_URL: ${{ vars.CIHIVE_CONTROL_PLANE_URL }}
+          CIHIVE_GITHUB_OIDC_AUDIENCE: ${{ vars.CIHIVE_OIDC_AUDIENCE || 'cihive' }}
+        run: >-
+          cihive verify
+          --assignment-id "${{ github.event.client_payload.verifier.id }}"
+          --token "${{ github.event.client_payload.verifier.token }}"

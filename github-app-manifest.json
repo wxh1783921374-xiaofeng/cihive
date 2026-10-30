@@ -1,0 +1,22 @@
+{
+  "name": "CIHive",
+  "url": "https://cihive.example.com",
+  "hook_attributes": {
+    "url": "https://cihive.example.com/webhooks/github",
+    "active": true
+  },
+  "redirect_url": "https://cihive.example.com",
+  "public": true,
+  "default_events": [
+    "workflow_run"
+  ],
+  "default_permissions": {
+    "actions": "read",
+    "contents": "write",
+    "issues": "write",
+    "metadata": "read",
+    "pull_requests": "write"
+  },
+  "request_oauth_on_install": false,
+  "setup_on_update": false
+}
